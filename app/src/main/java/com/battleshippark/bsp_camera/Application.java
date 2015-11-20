@@ -1,12 +1,30 @@
 package com.battleshippark.bsp_camera;
 
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+
 /**
- * Created by LinePlus on 11/19/2015.
  */
 public class Application extends android.app.Application {
-    @Override
-    public void onCreate() {
-        AnalyticsTrackers.initialize(this);
-        AnalyticsTrackers.getInstance().get(AnalyticsTrackers.Target.APP);
-    }
+	private static final Handler handler = new Handler(Looper.getMainLooper());
+	private static Context context;
+
+	@Override
+	public void onCreate() {
+		super.onCreate();
+
+		context = this;
+
+		AnalyticsTrackers.initialize(this);
+		AnalyticsTrackers.getInstance().get(AnalyticsTrackers.Target.APP);
+	}
+
+	public static Handler getHandler() {
+		return handler;
+	}
+
+	public static Context getContext() {
+		return context;
+	}
 }

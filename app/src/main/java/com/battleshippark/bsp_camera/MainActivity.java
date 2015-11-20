@@ -1,7 +1,6 @@
 package com.battleshippark.bsp_camera;
 
 import android.annotation.TargetApi;
-import android.hardware.Camera;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -10,6 +9,7 @@ import android.view.View;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import butterknife.OnClick;
 
 public class MainActivity extends AppCompatActivity {
 	@Bind(R.id.rootView)
@@ -19,6 +19,7 @@ public class MainActivity extends AppCompatActivity {
 	SurfaceView mPreview;
 
 	private CameraController mCameraController;
+	private OrientationController mOrientationController;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -35,16 +36,24 @@ public class MainActivity extends AppCompatActivity {
 	protected void onResume() {
 		super.onResume();
 		mCameraController.openAsync(0);
+		mOrientationController.enable();
 	}
 
 	@Override
 	protected void onPause() {
-		mCameraController.release();
 		super.onPause();
+		mOrientationController.disable();
+		mCameraController.release();
+	}
+
+	@OnClick(R.id.preview)
+	void onClickPreview() {
+		mCameraController.takePictureAsync();
 	}
 
 	private void initData() {
 		mCameraController = new CameraController(mPreview.getHolder());
+		mOrientationController = new OrientationController(this);
 	}
 
 	private void initUI() {
