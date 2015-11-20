@@ -1,5 +1,15 @@
 package com.battleshippark.bsp_camera;
 
+import android.content.Context;
+import android.content.Intent;
+import android.hardware.Camera;
+import android.media.ExifInterface;
+import android.net.Uri;
+import android.os.Environment;
+import android.view.Display;
+import android.view.SurfaceHolder;
+import android.view.WindowManager;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -11,25 +21,20 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import android.content.Context;
-import android.content.Intent;
-import android.hardware.Camera;
-import android.media.ExifInterface;
-import android.net.Uri;
-import android.os.Environment;
-import android.view.Display;
-import android.view.SurfaceHolder;
-import android.view.WindowManager;
+import jp.co.cyberagent.android.gpuimage.GPUImage;
 
 /**
  */
 public class CameraController implements SurfaceHolder.Callback {
     private final SurfaceHolder mSurfaceHolder;
+    private final GPUImage mGPUImage;
     private final ExecutorService executor;
+
     private Camera mCamera;
 
-    public CameraController(SurfaceHolder holder) {
+    public CameraController(SurfaceHolder holder, GPUImage mGPUImage) {
         mSurfaceHolder = holder;
+        this.mGPUImage = mGPUImage;
 
         executor = Executors.newSingleThreadExecutor();
     }
@@ -71,20 +76,41 @@ public class CameraController implements SurfaceHolder.Callback {
 
                 setParameters();
 
-                try {
-                    mCamera.setPreviewDisplay(mSurfaceHolder);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+//                try {
+//                    mCamera.setPreviewDisplay(mSurfaceHolder);
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
                 mCamera.setDisplayOrientation(90);
 
-                mCamera.startPreview();
+//                mCamera.startPreview();
 
-                mSurfaceHolder.addCallback(CameraController.this);
+//                mSurfaceHolder.addCallback(CameraController.this);
+                mGPUImage.setUpCamera(mCamera);
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
+    }
+
+    public void release() {
+        if (mCamera != null) {
+            mCamera.stopPreview();
+            mCamera.release(); // release the camera for other applications
+            mCamera = null;
+
+//            mSurfaceHolder.removeCallback(CameraController.this);
+        }
+    }
+
+    public void takePictureAsync() {
+        Display display = ((WindowManager) Application.getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+        LOG.i(MainActivity.class.getSimpleName(), "rot=%d", display.getRotation());
+        executor.execute(() -> mCamera.takePicture(null, null, this::onPictureTaken));
+    }
+
+    public Camera getCamera() {
+        return mCamera;
     }
 
     private void setParameters() {
@@ -108,22 +134,6 @@ public class CameraController implements SurfaceHolder.Callback {
                 pictureSizes.get(0).height);
 
         mCamera.setParameters(p);
-    }
-
-    public void release() {
-        if (mCamera != null) {
-            mCamera.stopPreview();
-            mCamera.release(); // release the camera for other applications
-            mCamera = null;
-
-            mSurfaceHolder.removeCallback(CameraController.this);
-        }
-    }
-
-    public void takePictureAsync() {
-        Display display = ((WindowManager) Application.getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
-        LOG.i(MainActivity.class.getSimpleName(), "rot=%d", display.getRotation());
-        executor.execute(() -> mCamera.takePicture(null, null, this::onPictureTaken));
     }
 
     public static final int MEDIA_TYPE_IMAGE = 1;
