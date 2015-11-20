@@ -61,7 +61,6 @@ public class MainActivity extends AppCompatActivity {
     private void initData() {
         mGPUImage = new GPUImage(this);
         mGPUImage.setGLSurfaceView(mPreview2);
-//        mGPUImage.setUpCamera(mCameraController.getCamera());
         mGPUImage.setFilter(new GPUImageSepiaFilter());
 
         mCameraController = new CameraController(mPreview.getHolder(), mGPUImage);

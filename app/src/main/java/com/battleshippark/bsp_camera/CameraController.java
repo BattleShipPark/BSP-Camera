@@ -76,17 +76,7 @@ public class CameraController implements SurfaceHolder.Callback {
 
                 setParameters();
 
-//                try {
-//                    mCamera.setPreviewDisplay(mSurfaceHolder);
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-                mCamera.setDisplayOrientation(90);
-
-//                mCamera.startPreview();
-
-//                mSurfaceHolder.addCallback(CameraController.this);
-                mGPUImage.setUpCamera(mCamera);
+                mGPUImage.setUpCamera(mCamera, 90, false, false);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -96,21 +86,14 @@ public class CameraController implements SurfaceHolder.Callback {
     public void release() {
         if (mCamera != null) {
             mCamera.stopPreview();
+            mCamera.setPreviewCallback(null);
             mCamera.release(); // release the camera for other applications
             mCamera = null;
-
-//            mSurfaceHolder.removeCallback(CameraController.this);
         }
     }
 
     public void takePictureAsync() {
-        Display display = ((WindowManager) Application.getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
-        LOG.i(MainActivity.class.getSimpleName(), "rot=%d", display.getRotation());
         executor.execute(() -> mCamera.takePicture(null, null, this::onPictureTaken));
-    }
-
-    public Camera getCamera() {
-        return mCamera;
     }
 
     private void setParameters() {
