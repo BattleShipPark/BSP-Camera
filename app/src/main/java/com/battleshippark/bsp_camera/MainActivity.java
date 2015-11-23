@@ -4,6 +4,8 @@ import android.annotation.TargetApi;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
@@ -32,8 +34,19 @@ public class MainActivity extends AppCompatActivity {
     @Bind(R.id.focus)
     ImageView mFocusView;
 
+    private static final int MSG_RETURN_TO_AUTO_FOCUS = 1;
     private CameraController mCameraController;
     private OrientationController mOrientationController;
+    private Handler handler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case MSG_RETURN_TO_AUTO_FOCUS:
+                    mFocusView.setVisibility(View.GONE);
+                    mCameraController.setAutoFocus();
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        hideSystemUI();
         mCameraController.openAsync(0);
         mOrientationController.enable();
     }
@@ -77,19 +91,16 @@ public class MainActivity extends AppCompatActivity {
             if (event.getAction() == MotionEvent.ACTION_UP) {
                 showFocusingDrawable(event.getX(), event.getY());
                 mCameraController.setFocusArea(mFilteredPreview.getWidth(), mFilteredPreview.getHeight(), event.getX(), event.getY(),
-                        (success, camera) -> {
-                            if (success) {
-                                showFocusedDrawable(event.getX(), event.getY());
-                            }
-                        });
+                        (success, camera) -> showFocusedDrawable(event.getX(), event.getY(), success));
             }
             return true;
         });
     }
 
     private void showFocusingDrawable(float x, float y) {
-        mFocusView.setSelected(false);
+        mFocusView.setImageResource(R.drawable.camera_focusing);
         mFocusView.setVisibility(View.VISIBLE);
+        mFocusView.clearAnimation();
 
         ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) mFocusView.getLayoutParams();
         lp.width = lp.height = GraphicUtils.dp2px(getResources(), 80);
@@ -100,15 +111,21 @@ public class MainActivity extends AppCompatActivity {
         mFocusView.startAnimation(ani);
     }
 
-    private void showFocusedDrawable(float x, float y) {
+    private void showFocusedDrawable(float x, float y, boolean success) {
 //        LOG.i(MainActivity.class.getSimpleName(), "focused");
-        mFocusView.setSelected(true);
+        if (success)
+            mFocusView.setImageResource(R.drawable.camera_focused);
+        else
+            mFocusView.setImageResource(R.drawable.camera_unfocused);
 
         ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) mFocusView.getLayoutParams();
         lp.width = lp.height = GraphicUtils.dp2px(getResources(), 40);
         lp.setMargins((int) x - lp.width / 2, (int) y - lp.height / 2, 0, 0);
         mFocusView.setLayoutParams(lp);
         mFocusView.clearAnimation();
+
+        handler.removeMessages(MSG_RETURN_TO_AUTO_FOCUS);
+        handler.sendEmptyMessageDelayed(MSG_RETURN_TO_AUTO_FOCUS, 2000);
     }
 
     private void initUI() {

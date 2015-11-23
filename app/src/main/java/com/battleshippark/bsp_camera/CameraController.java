@@ -2,7 +2,6 @@ package com.battleshippark.bsp_camera;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.hardware.Camera;
@@ -162,6 +161,20 @@ public class CameraController implements SurfaceHolder.Callback {
 
     }
 
+
+    public void setAutoFocus() {
+        Camera.Parameters p = mCamera.getParameters();
+
+        List<String> focusModes = p.getSupportedFocusModes();
+        if (focusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
+            p.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+
+            LOG.i(CameraController.class.getSimpleName(), "FOCUS_MODE_AUTO");
+        }
+
+        mCamera.setParameters(p);
+    }
+
     private void setParameters() {
         Camera.Parameters p = mCamera.getParameters();
 
@@ -170,12 +183,12 @@ public class CameraController implements SurfaceHolder.Callback {
         LOG.i(CameraController.class.getSimpleName(), "Preview=(%d,%d)", previewSizes.get(0).width,
                 previewSizes.get(0).height);
 
-/*        List<String> focusModes = p.getSupportedFocusModes();
+        List<String> focusModes = p.getSupportedFocusModes();
         if (focusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
             p.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
 
             LOG.i(CameraController.class.getSimpleName(), "FOCUS_MODE_AUTO");
-        }*/
+        }
 
         List<Camera.Size> pictureSizes = p.getSupportedPictureSizes();
         p.setPictureSize(pictureSizes.get(0).width, pictureSizes.get(0).height);
