@@ -106,8 +106,8 @@ public class CameraController implements SurfaceHolder.Callback {
         });
     }
 
-    public void setFocusArea(int width, int height, float x, float y) {
-        LOG.i(CameraController.class.getSimpleName(), "w=%d, h=%d, x=%f, y=%f", width, height, x, y);
+    public void setFocusArea(int width, int height, float x, float y, Camera.AutoFocusCallback cb) {
+//        LOG.i(CameraController.class.getSimpleName(), "w=%d, h=%d, x=%f, y=%f", width, height, x, y);
 
         Camera.Parameters params = mCamera.getParameters();
 
@@ -153,11 +153,11 @@ public class CameraController implements SurfaceHolder.Callback {
             meteringAreas.add(area);
             params.setFocusAreas(meteringAreas);
 
-            LOG.i(CameraController.class.getSimpleName(), "relX=%f, relY=%f, focusRelX=%d, focusRelY=%d, rect=%s", relX, relY, focusRelX, focusRelY, areaRectF);
+//            LOG.i(CameraController.class.getSimpleName(), "relX=%f, relY=%f, focusRelX=%d, focusRelY=%d, rect=%s", relX, relY, focusRelX, focusRelY, areaRectF);
 
             params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
             mCamera.setParameters(params);
-            mCamera.autoFocus(null);
+            mCamera.autoFocus(cb);
         }
 
     }
