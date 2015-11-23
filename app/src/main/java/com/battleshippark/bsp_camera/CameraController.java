@@ -2,6 +2,9 @@ package com.battleshippark.bsp_camera;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.hardware.Camera;
 import android.media.ExifInterface;
 import android.net.Uri;
@@ -14,6 +17,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -25,6 +29,8 @@ import jp.co.cyberagent.android.gpuimage.GPUImage;
 /**
  */
 public class CameraController implements SurfaceHolder.Callback {
+    private static final int MEDIA_TYPE_IMAGE = 1;
+    private static final int MEDIA_TYPE_VIDEO = 2;
     private final SurfaceHolder mSurfaceHolder;
     private final GPUImage mGPUImage;
     private final ExecutorService executor;
@@ -100,6 +106,62 @@ public class CameraController implements SurfaceHolder.Callback {
         });
     }
 
+    public void setFocusArea(int width, int height, float x, float y) {
+        LOG.i(CameraController.class.getSimpleName(), "w=%d, h=%d, x=%f, y=%f", width, height, x, y);
+
+        Camera.Parameters params = mCamera.getParameters();
+
+        if (params.getMaxNumMeteringAreas() > 0) { // check that metering areas are supported
+            List<Camera.Area> meteringAreas = new ArrayList<>();
+
+            int adjustedWidth = width, adjustedHeight = height;
+            float adjustedX = x, adjustedY = y;
+
+            /* 촛점영역을 계산할 때 필요한 폭, 너비 등이 회전에 따라 다르다 */
+            switch (OrientationController.getOrientation4P()) {
+                case ORIENTATION_0:
+                    break;
+                case ORIENTATION_90:
+                    adjustedWidth = height;
+                    adjustedHeight = width;
+                    adjustedX = height - y;
+                    adjustedY = x;
+                    break;
+                case ORIENTATION_180:
+                    break;
+                case ORIENTATION_270:
+                    adjustedWidth = height;
+                    adjustedHeight = width;
+                    adjustedX = y;
+                    adjustedY = width - x;
+                    break;
+            }
+            float relX = adjustedX / (adjustedWidth / 2.f) - 1;
+            float relY = adjustedY / (adjustedHeight / 2.f) - 1;
+
+            int focusRelX = (int) (1000 * relX);
+            int focusRelY = (int) (1000 * relY);
+
+            RectF areaRectF = new RectF();
+            areaRectF.left = Math.max(-1000, focusRelX - 125);
+            areaRectF.top = Math.max(-1000, focusRelY - 125);
+            areaRectF.right = Math.min(1000, focusRelX + 125);
+            areaRectF.bottom = Math.min(1000, focusRelY + 125);
+
+            Camera.Area area = new Camera.Area(new Rect((int) areaRectF.left, (int) areaRectF.top, (int) areaRectF.right, (int) areaRectF.bottom), 1000);
+
+            meteringAreas.add(area);
+            params.setFocusAreas(meteringAreas);
+
+            LOG.i(CameraController.class.getSimpleName(), "relX=%f, relY=%f, focusRelX=%d, focusRelY=%d, rect=%s", relX, relY, focusRelX, focusRelY, areaRectF);
+
+            params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+            mCamera.setParameters(params);
+            mCamera.autoFocus(null);
+        }
+
+    }
+
     private void setParameters() {
         Camera.Parameters p = mCamera.getParameters();
 
@@ -108,12 +170,12 @@ public class CameraController implements SurfaceHolder.Callback {
         LOG.i(CameraController.class.getSimpleName(), "Preview=(%d,%d)", previewSizes.get(0).width,
                 previewSizes.get(0).height);
 
-        List<String> focusModes = p.getSupportedFocusModes();
+/*        List<String> focusModes = p.getSupportedFocusModes();
         if (focusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
             p.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
 
             LOG.i(CameraController.class.getSimpleName(), "FOCUS_MODE_AUTO");
-        }
+        }*/
 
         List<Camera.Size> pictureSizes = p.getSupportedPictureSizes();
         p.setPictureSize(pictureSizes.get(0).width, pictureSizes.get(0).height);
@@ -122,9 +184,6 @@ public class CameraController implements SurfaceHolder.Callback {
 
         mCamera.setParameters(p);
     }
-
-    public static final int MEDIA_TYPE_IMAGE = 1;
-    public static final int MEDIA_TYPE_VIDEO = 2;
 
     @WorkerThread
     private void onPictureTaken(byte[] data, Camera camera) {

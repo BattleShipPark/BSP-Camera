@@ -5,6 +5,7 @@ import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 
@@ -12,6 +13,7 @@ import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import jp.co.cyberagent.android.gpuimage.GPUImage;
+import jp.co.cyberagent.android.gpuimage.GPUImageBrightnessFilter;
 import jp.co.cyberagent.android.gpuimage.GPUImageSepiaFilter;
 
 public class MainActivity extends AppCompatActivity {
@@ -60,10 +62,16 @@ public class MainActivity extends AppCompatActivity {
     private void initData() {
         GPUImage mGPUImage = new GPUImage(this);
         mGPUImage.setGLSurfaceView(mFilteredPreview);
-        mGPUImage.setFilter(new GPUImageSepiaFilter());
+        mGPUImage.setFilter(new GPUImageBrightnessFilter());
 
         mCameraController = new CameraController(mPreview.getHolder(), mGPUImage);
         mOrientationController = new OrientationController(this);
+
+        mFilteredPreview.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_UP)
+                mCameraController.setFocusArea(mFilteredPreview.getWidth(), mFilteredPreview.getHeight(), event.getX(), event.getY());
+            return true;
+        });
     }
 
     private void initUI() {
