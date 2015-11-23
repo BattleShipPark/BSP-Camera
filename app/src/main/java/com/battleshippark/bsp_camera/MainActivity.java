@@ -21,12 +21,11 @@ public class MainActivity extends AppCompatActivity {
     @Bind(R.id.preview)
     SurfaceView mPreview;
 
-    @Bind(R.id.preview2)
-    GLSurfaceView mPreview2;
+    @Bind(R.id.filteredPreview)
+    GLSurfaceView mFilteredPreview;
 
     private CameraController mCameraController;
     private OrientationController mOrientationController;
-    private GPUImage mGPUImage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,8 +58,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initData() {
-        mGPUImage = new GPUImage(this);
-        mGPUImage.setGLSurfaceView(mPreview2);
+        GPUImage mGPUImage = new GPUImage(this);
+        mGPUImage.setGLSurfaceView(mFilteredPreview);
         mGPUImage.setFilter(new GPUImageSepiaFilter());
 
         mCameraController = new CameraController(mPreview.getHolder(), mGPUImage);
