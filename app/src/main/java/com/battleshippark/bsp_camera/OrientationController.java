@@ -38,12 +38,12 @@ public class OrientationController {
 		int orientation = OrientationController.orientation;
 
 		if (90 - MARGIN <= orientation && orientation < 90 + MARGIN)
-			return String.valueOf(ExifInterface.ORIENTATION_ROTATE_180);
-		else if (180 - MARGIN <= orientation && orientation < 180 + MARGIN)
-			return String.valueOf(ExifInterface.ORIENTATION_ROTATE_270);
-		else if (270 - MARGIN < orientation && orientation <= 270 + MARGIN)
-			return String.valueOf(ExifInterface.ORIENTATION_NORMAL);
-		else
 			return String.valueOf(ExifInterface.ORIENTATION_ROTATE_90);
+		else if (180 - MARGIN <= orientation && orientation < 180 + MARGIN)
+			return String.valueOf(ExifInterface.ORIENTATION_ROTATE_180);
+		else if (270 - MARGIN < orientation && orientation <= 270 + MARGIN)
+			return String.valueOf(ExifInterface.ORIENTATION_ROTATE_270);
+		else
+			return String.valueOf(ExifInterface.ORIENTATION_NORMAL);
 	}
 }

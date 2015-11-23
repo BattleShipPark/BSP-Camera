@@ -1,14 +1,13 @@
 package com.battleshippark.bsp_camera;
 
-import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.hardware.Camera;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Environment;
-import android.view.Display;
+import android.support.annotation.WorkerThread;
 import android.view.SurfaceHolder;
-import android.view.WindowManager;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -93,7 +92,12 @@ public class CameraController implements SurfaceHolder.Callback {
     }
 
     public void takePictureAsync() {
-        executor.execute(() -> mCamera.takePicture(null, null, this::onPictureTaken));
+//        executor.execute(() -> mCamera.takePicture(null, null, this::onPictureTaken));
+        executor.execute(() -> {
+            Camera.Parameters p = mCamera.getParameters();
+            Camera.Size previewSize = p.getPreviewSize();
+            mGPUImage.getFilteredBitmap(previewSize.height, previewSize.width, CameraController.this::onPictureTaken);
+        });
     }
 
     private void setParameters() {
@@ -122,6 +126,7 @@ public class CameraController implements SurfaceHolder.Callback {
     public static final int MEDIA_TYPE_IMAGE = 1;
     public static final int MEDIA_TYPE_VIDEO = 2;
 
+    @WorkerThread
     private void onPictureTaken(byte[] data, Camera camera) {
         String orientation = OrientationController.getExifOrientation();
 
@@ -139,6 +144,23 @@ public class CameraController implements SurfaceHolder.Callback {
         Application.getHandler().post(() -> openAsync(0));
     }
 
+    @WorkerThread
+    private void onPictureTaken(Bitmap bitmap) {
+        Application.getHandler().post(() -> openAsync(0));
+
+        String orientation = OrientationController.getExifOrientation();
+
+        try {
+            File file = save(bitmap);
+
+            modifyExif(file, orientation);
+
+            addToGallery(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void modifyExif(File file, String orientation) throws IOException {
         ExifInterface exif = new ExifInterface(file.getAbsolutePath());
         exif.setAttribute(ExifInterface.TAG_ORIENTATION, orientation);
@@ -154,6 +176,25 @@ public class CameraController implements SurfaceHolder.Callback {
         try {
             FileOutputStream fos = new FileOutputStream(pictureFile);
             fos.write(data);
+            fos.close();
+        } catch (FileNotFoundException e) {
+            LOG.d(CameraController.class.getSimpleName(), "File not found: %s", e.getMessage());
+        } catch (IOException e) {
+            LOG.d(CameraController.class.getSimpleName(), "Error accessing file: %s", e.getMessage());
+        }
+
+        return pictureFile;
+    }
+
+    private File save(Bitmap bitmap) throws IOException {
+        File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
+        if (pictureFile == null) {
+            throw new IOException();
+        }
+
+        try {
+            FileOutputStream fos = new FileOutputStream(pictureFile);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
             fos.close();
         } catch (FileNotFoundException e) {
             LOG.d(CameraController.class.getSimpleName(), "File not found: %s", e.getMessage());

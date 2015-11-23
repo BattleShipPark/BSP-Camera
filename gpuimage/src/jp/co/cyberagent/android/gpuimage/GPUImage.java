@@ -30,6 +30,7 @@ import android.hardware.Camera;
 import android.media.ExifInterface;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -39,10 +40,14 @@ import android.provider.MediaStore;
 import android.view.Display;
 import android.view.WindowManager;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
+import java.nio.IntBuffer;
 import java.util.List;
-import java.util.concurrent.Semaphore;
 
 /**
  * The main accessor for GPUImage functionality. This class helps to do common
@@ -121,13 +126,13 @@ public class GPUImage {
     /**
      * Sets the up camera to be connected to GPUImage to get a filtered preview.
      *
-     * @param camera the camera
-     * @param degrees by how many degrees the image should be rotated
+     * @param camera         the camera
+     * @param degrees        by how many degrees the image should be rotated
      * @param flipHorizontal if the image should be flipped horizontally
-     * @param flipVertical if the image should be flipped vertically
+     * @param flipVertical   if the image should be flipped vertically
      */
     public void setUpCamera(final Camera camera, final int degrees, final boolean flipHorizontal,
-            final boolean flipVertical) {
+                            final boolean flipVertical) {
         mGlSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.GINGERBREAD_MR1) {
             setUpCameraGingerbread(camera);
@@ -274,13 +279,13 @@ public class GPUImage {
 
                 @Override
                 public void run() {
-                    synchronized(mFilter) {
+                    synchronized (mFilter) {
                         mFilter.destroy();
                         mFilter.notify();
                     }
                 }
             });
-            synchronized(mFilter) {
+            synchronized (mFilter) {
                 requestRender();
                 try {
                     mFilter.wait();
@@ -318,12 +323,12 @@ public class GPUImage {
      * bitmap. The order of the calls to the listener will be the same as the
      * filter order.
      *
-     * @param bitmap the bitmap on which the filters will be applied
-     * @param filters the filters which will be applied on the bitmap
+     * @param bitmap   the bitmap on which the filters will be applied
+     * @param filters  the filters which will be applied on the bitmap
      * @param listener the listener on which the results will be notified
      */
     public static void getBitmapForMultipleFilters(final Bitmap bitmap,
-            final List<GPUImageFilter> filters, final ResponseListener<Bitmap> listener) {
+                                                   final List<GPUImageFilter> filters, final ResponseListener<Bitmap> listener) {
         if (filters.isEmpty()) {
             return;
         }
@@ -344,7 +349,7 @@ public class GPUImage {
     /**
      * Deprecated: Please use
      * {@link GPUImageView#saveToPictures(String, String, jp.co.cyberagent.android.gpuimage.GPUImageView.OnPictureSavedListener)}
-     *
+     * <p>
      * Save current image with applied filter to Pictures. It will be stored on
      * the default Picture folder on the phone below the given folderName and
      * fileName. <br>
@@ -352,34 +357,66 @@ public class GPUImage {
      * listener.
      *
      * @param folderName the folder name
-     * @param fileName the file name
-     * @param listener the listener
+     * @param fileName   the file name
+     * @param listener   the listener
      */
     @Deprecated
     public void saveToPictures(final String folderName, final String fileName,
-            final OnPictureSavedListener listener) {
+                               final OnPictureSavedListener listener) {
         saveToPictures(mCurrentBitmap, folderName, fileName, listener);
     }
 
     /**
      * Deprecated: Please use
      * {@link GPUImageView#saveToPictures(String, String, jp.co.cyberagent.android.gpuimage.GPUImageView.OnPictureSavedListener)}
-     *
+     * <p>
      * Apply and save the given bitmap with applied filter to Pictures. It will
      * be stored on the default Picture folder on the phone below the given
      * folerName and fileName. <br>
      * This method is async and will notify when the image was saved through the
      * listener.
      *
-     * @param bitmap the bitmap
+     * @param bitmap     the bitmap
      * @param folderName the folder name
-     * @param fileName the file name
-     * @param listener the listener
+     * @param fileName   the file name
+     * @param listener   the listener
      */
     @Deprecated
     public void saveToPictures(final Bitmap bitmap, final String folderName, final String fileName,
-            final OnPictureSavedListener listener) {
+                               final OnPictureSavedListener listener) {
         new SaveTask(bitmap, folderName, fileName, listener).execute();
+    }
+
+    public interface OnFilteredBitmapListener {
+        void onFilteredBitmap(Bitmap bitmap);
+    }
+
+    public void getFilteredBitmap(final int w, final int h, final OnFilteredBitmapListener onFilteredBitmapListener) {
+        final int x = 0, y = 0;
+        runOnGLThread(new Runnable() {
+            @Override
+            public void run() {
+                int b[] = new int[w * (y + h)];
+                int bt[] = new int[w * h];
+                IntBuffer ib = IntBuffer.wrap(b);
+                ib.position(0);
+                GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, ib);
+
+                for (int i = 0, k = 0; i < h; i++, k++) {//remember, that OpenGL bitmap is incompatible with Android bitmap
+                    //and so, some correction need.
+                    for (int j = 0; j < w; j++) {
+                        int pix = b[i * w + j];
+                        int pb = (pix >> 16) & 0xff;
+                        int pr = (pix << 16) & 0x00ff0000;
+                        int pix1 = (pix & 0xff00ff00) | pr | pb;
+                        bt[(h - k - 1) * w + j] = pix1;
+                    }
+                }
+
+                Bitmap sb = Bitmap.createBitmap(bt, w, h, Bitmap.Config.ARGB_8888);
+                onFilteredBitmapListener.onFilteredBitmap(sb);
+            }
+        });
     }
 
     /**
@@ -427,7 +464,7 @@ public class GPUImage {
         private final Handler mHandler;
 
         public SaveTask(final Bitmap bitmap, final String folderName, final String fileName,
-                final OnPictureSavedListener listener) {
+                        final OnPictureSavedListener listener) {
             mBitmap = bitmap;
             mFolderName = folderName;
             mFileName = fileName;
@@ -450,8 +487,8 @@ public class GPUImage {
                 file.getParentFile().mkdirs();
                 image.compress(CompressFormat.JPEG, 80, new FileOutputStream(file));
                 MediaScannerConnection.scanFile(mContext,
-                        new String[] {
-                            file.toString()
+                        new String[]{
+                                file.toString()
                         }, null,
                         new MediaScannerConnection.OnScanCompletedListener() {
                             @Override
@@ -505,7 +542,7 @@ public class GPUImage {
         @Override
         protected int getImageOrientation() throws IOException {
             Cursor cursor = mContext.getContentResolver().query(mUri,
-                    new String[] { MediaStore.Images.ImageColumns.ORIENTATION }, null, null, null);
+                    new String[]{MediaStore.Images.ImageColumns.ORIENTATION}, null, null, null);
 
             if (cursor == null || cursor.getCount() != 1) {
                 return 0;
@@ -702,5 +739,5 @@ public class GPUImage {
         void response(T item);
     }
 
-    public enum ScaleType { CENTER_INSIDE, CENTER_CROP }
+    public enum ScaleType {CENTER_INSIDE, CENTER_CROP}
 }
