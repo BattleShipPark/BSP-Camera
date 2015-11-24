@@ -1,6 +1,7 @@
 package com.battleshippark.bsp_camera;
 
 import android.annotation.TargetApi;
+import android.app.AlertDialog;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,6 +34,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Bind(R.id.focus)
     ImageView mFocusView;
+
+    @Bind(R.id.shutter)
+    ImageView mShutter;
+
+    @Bind(R.id.ratio)
+    ImageView mRatio;
 
     private static final int MSG_RETURN_TO_AUTO_FOCUS = 1;
     private CameraController mCameraController;
@@ -74,27 +81,26 @@ public class MainActivity extends AppCompatActivity {
         mCameraController.release();
     }
 
-    @OnClick(R.id.preview)
-    void onClickPreview() {
+    @OnClick(R.id.shutter)
+    void onClickShutter() {
         mCameraController.takePictureAsync();
     }
 
-    private void initData() {
-        GPUImage mGPUImage = new GPUImage(this);
-        mGPUImage.setGLSurfaceView(mFilteredPreview);
-        mGPUImage.setFilter(new GPUImageBrightnessFilter());
+    @OnClick(R.id.ratio)
+    void onClickRatio() {
+        showPictureRatioDialog();
+    }
 
-        mCameraController = new CameraController(mPreview.getHolder(), mGPUImage);
-        mOrientationController = new OrientationController(this);
+    private void showPictureRatioDialog() {
+        String[] items = new String[]{PreviewRatio.RATIO_16_9.getText(), PreviewRatio.RATIO_4_3.getText(), PreviewRatio.RATIO_1_1.getText()};
 
-        mFilteredPreview.setOnTouchListener((v, event) -> {
-            if (event.getAction() == MotionEvent.ACTION_UP) {
-                showFocusingDrawable(event.getX(), event.getY());
-                mCameraController.setFocusArea(mFilteredPreview.getWidth(), mFilteredPreview.getHeight(), event.getX(), event.getY(),
-                        (success, camera) -> showFocusedDrawable(event.getX(), event.getY(), success));
-            }
-            return true;
-        });
+        AlertDialog.Builder builder = new AlertDialog.Builder(this).setItems(items,
+                (dialog, which) -> {
+                    mCameraController.setPictureRatio(PreviewRatio.of(items[which]));
+                    hideSystemUI();
+                }
+        );
+        builder.setOnCancelListener(dialog -> hideSystemUI()).create().show();
     }
 
     private void showFocusingDrawable(float x, float y) {
@@ -127,6 +133,25 @@ public class MainActivity extends AppCompatActivity {
         handler.removeMessages(MSG_RETURN_TO_AUTO_FOCUS);
         handler.sendEmptyMessageDelayed(MSG_RETURN_TO_AUTO_FOCUS, 2000);
     }
+
+    private void initData() {
+        GPUImage mGPUImage = new GPUImage(this);
+        mGPUImage.setGLSurfaceView(mFilteredPreview);
+        mGPUImage.setFilter(new GPUImageBrightnessFilter());
+
+        mCameraController = new CameraController(mPreview.getHolder(), mGPUImage);
+        mOrientationController = new OrientationController(this);
+
+        mFilteredPreview.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                showFocusingDrawable(event.getX(), event.getY());
+                mCameraController.setFocusArea(mFilteredPreview.getWidth(), mFilteredPreview.getHeight(), event.getX(), event.getY(),
+                        (success, camera) -> showFocusedDrawable(event.getX(), event.getY(), success));
+            }
+            return true;
+        });
+    }
+
 
     private void initUI() {
         hideSystemUI();

@@ -175,6 +175,21 @@ public class CameraController implements SurfaceHolder.Callback {
         mCamera.setParameters(p);
     }
 
+    public void setPictureRatio(PreviewRatio ratio) {
+        Camera.Parameters p = mCamera.getParameters();
+
+        List<Camera.Size> previewSizes = p.getSupportedPreviewSizes();
+        for (Camera.Size size : previewSizes) {
+            if (1.f * size.width / size.height == ratio.getRatio()) {
+                p.setPreviewSize(size.width, size.height);
+                LOG.i(CameraController.class.getSimpleName(), "Preview=(%d,%d)", size.width,  size.height);
+                break;
+            }
+        }
+
+        mCamera.setParameters(p);
+    }
+
     private void setParameters() {
         Camera.Parameters p = mCamera.getParameters();
 
